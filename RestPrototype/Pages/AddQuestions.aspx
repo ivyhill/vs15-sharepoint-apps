@@ -27,15 +27,20 @@
             appwebUrl = decodeURIComponent(getQueryStringParameter("SPAppWebUrl"));
             var scriptbase = hostwebUrl + "/_layouts/15/";
             $.getScript(scriptbase + "SP.RequestExecutor.js");
-
-            BindAuditDropdown();
             
             jQuery("#CreateQuestionsButton").click(function () {
                 //alert("test");
                 //getItems();
                 //getListsXd();
-                GetSelectedAudit();
+                ReusableCrossDomainListRequest("/web/lists/getbytitle('Audit')/items", GetSelectAudit);
+                
             });
+
+            
+            ReusableCrossDomainListRequest("/web/lists/getbytitle('Audit')/items", AuditDropDownBind);
+            //ReusableCrossDomainListRequest("/web/lists/getbytitle('Audit')/items", myCallback);            
+
+
 
         });
 
@@ -50,22 +55,6 @@
             }
         }
 
-
-        /****************************************/
-        function BindAuditDropdown() { execCrossDomainListRequest(); }
-        //Cross Domain Call to obtain Host Web Lists
-        function execCrossDomainListRequest() {
-            var executor;
-            executor = new SP.RequestExecutor(appwebUrl);
-            var url = appwebUrl + "/_api/SP.AppContextSite(@target)/web/lists/getbytitle('Audit')/items?@target='" + hostwebUrl + "'";
-            executor.executeAsync({
-                url: url,
-                method: "GET",
-                headers: { "Accept": "application/json; odata=verbose" },
-                success: AuditDropDownBind,
-                error: errorListHandlerXD
-            });
-        }
         function AuditDropDownBind(data) {
             var jsonObject = JSON.parse(data.body);
             var lists = jsonObject.d.results;
@@ -77,41 +66,114 @@
                 }));
             });
         }
-        /**************************************/
-        function GetSelectedAudit() { getAuditTypes();}
-        function getAuditTypes() {
-            
-            var executor;
-            executor = new SP.RequestExecutor(appwebUrl);
-            var url = appwebUrl + "/_api/SP.AppContextSite(@target)/web/lists/getbytitle('Audit')/items?@target='" + hostwebUrl + "'";
-            executor.executeAsync({
-                url: url,
-                method: "GET",
-                headers: { "Accept": "application/json; odata=verbose" },
-                success: GetSelectAudit,
-                error: errorListHandlerXD
-            });
-        }
+
         function GetSelectAudit(data) {
             var jsonObject = JSON.parse(data.body);
             var lists = jsonObject.d.results;
             var auditTitle = $("#AuditDropdownList option:selected" ).text();
-            var scheduleArray
+            var scheduleArray;
             for (var item in lists)
             {
                 if (lists[item].Title == auditTitle)
                 {
                     var concatenatedScheduled = lists[item].Proposed_x0020_Schedule.results;
                     scheduleArray = concatenatedScheduled.toString().split(',');
-                    alert(scheduleArray.length);
+                    for (var i = 0; i < scheduleArray.length; i++) {
+                        //pass proposed scheduled Source and AUDIT number into function that will query questions
+                        SetUpQuestionLoop(auditTitle, scheduleArray[i])
+                    }                 
                 }
             };
 
         }
 
+        function SetUpQuestionLoop(auditNum, source) {
+            var midUrl = "/web/lists/getbytitle('ChecklistTemplate')/items";
+            //var midUrlOld = "/web/lists/getbytitle('ChecklistTemplate')/items?$filter=Source eq \'" + source + "\'";
+
+            var executor;
+            executor = new SP.RequestExecutor(appwebUrl);
+            var url = appwebUrl + "/_api/SP.AppContextSite(@target)" + midUrl + "?@target='" + hostwebUrl + "'";
+            executor.executeAsync({
+                url: url,
+                method: "GET",
+                headers: { "Accept": "application/json; odata=verbose" },
+                success: function (data) {
+                    GetAuditCheckList(data, auditNum, source);
+                },
+                error: errorListHandlerXD
+            });
+        }
+
+        function GetAuditCheckList(data, auditNum, source) {
+            var jsonObject = JSON.parse(data.body);
+            var lists = jsonObject.d.results;
+            for (var item in lists)
+            {
+                //Then do insert the question
+                if (lists[item].Source == source) {
+                    //alert(lists[item].Questions);
+                    var insertData = {
+                        __metadata: { 'type': 'SP.Data.Audit%20Checklist' },
+                        Title: auditNum,
+                        CL_x002d_ID: lists[item].CL_x002d_ID,
+                        Question: lists[item].Question,
+                        Source: source
+                    };
+                    ReusablePostCrossDomainListRequest("/web/lists/getbytitle('Audit%20Checklist')/items", CreateAuditCheckList, insertData);
+                }
+            }
+            //alert("this was a success here is the audit num: " + auditNum + " this is the CL-ID :" + CLID);
+        }
+
+        function CreateAuditCheckList(){
+            alert("Item was inserted");
+        }
+
+
         //Error Lists
         function errorListHandlerXD(data, errorCode, errorMessage) {
-            $('#Label1').html("Could not complete cross-domain call: " + errorMessage);
+            //$('#Label1').html("Could not complete cross-domain call: " + errorMessage);
+            //alert(errorMessage);
+        }
+
+
+
+
+
+
+        /**********Reusable Rest Call************/
+        function ReusableCrossDomainListRequest(url, resultFunction) {
+            var executor;
+            executor = new SP.RequestExecutor(appwebUrl);
+            var url = appwebUrl + "/_api/SP.AppContextSite(@target)" + url + "?@target='" + hostwebUrl + "'";
+            executor.executeAsync({
+                url: url,
+                method: "GET",
+                headers: { "Accept": "application/json; odata=verbose" },
+                success: resultFunction,
+                error: errorListHandlerXD
+            });
+        }
+
+        function ReusablePostCrossDomainListRequest(url, resultFuction, insertObject) {
+
+            var executor;
+            executor = new SP.RequestExecutor(appwebUrl);
+            var url = appwebUrl + "/_api/SP.AppContextSite(@target)" + url + "?@target='" + hostwebUrl + "'";
+            executor.executeAsync({
+                url: url,
+                method: "POST",
+                headers: {
+                    "accept": "application/json;odata=verbose",
+                    "content-Type": "application/json;odata=verbose"
+                },
+                data: JSON.stringify(insertObject),
+                success: function (data) {
+                    alert("inserted");
+                },
+                error: errorListHandlerXD
+            });
         }
 
 
@@ -137,6 +199,7 @@
                 document.write('<link rel="stylesheet" href="/_layouts/15/1033/styles/themable/corev15.css" />');
             }
         })();
+        
     </script>
 </head>
 <body>

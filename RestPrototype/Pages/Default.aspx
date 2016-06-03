@@ -40,9 +40,14 @@
             });
 
             jQuery("#Button2").click(function () {
-                //alert("test");
-                //getItems();
                 insertList();
+            });
+
+            jQuery("#Button3").click(function () {
+                //alert("testing this hosturl first: " + hostwebUrl);
+                //retrieveAllListProperties(appwebUrl, hostwebUrl);
+                //execCrossDomainRequest(appwebUrl, hostwebUrl);
+                printAllListNamesFromHostWeb(appwebUrl, hostwebUrl);
             });
 
             getLists();
@@ -183,6 +188,134 @@
 
 
 
+
+
+
+        /*************************JSOM*****************************/
+        function execCrossDomainRequest(appweburl, hostweburl) {
+            // context: The ClientContext object provides access to
+            //      the web and lists objects.
+            // factory: Initialize the factory object with the
+            //      add-in web URL.
+            var context;
+            var factory;
+            var appContextSite;
+
+            context = new SP.ClientContext(appweburl);
+            factory = new SP.ProxyWebRequestExecutorFactory(appweburl);
+            context.set_webRequestExecutorFactory(factory);
+            appContextSite = new SP.AppContextSite(context, hostweburl);
+
+            this.web = appContextSite.get_web();
+            context.load(this.web);
+
+            // Execute the query with all the previous 
+            //  options and parameters.
+            context.executeQueryAsync(
+                Function.createDelegate(this, successHandler),
+                Function.createDelegate(this, errorHandler)
+            );
+
+            // Function to handle the success event.
+            // Prints the host web's title to the page.
+            function successHandler() {
+                alert(this.web.get_title());
+            }
+
+            // Function to handle the error event.
+            // Prints the error message to the page.
+            function errorHandler(data, errorCode, errorMessage) {
+                alert("Could not complete cross-domain call: " + errorMessage);
+            }
+        }
+
+        /**********modify jsom***********/
+        function printAllListNamesFromHostWeb(appweburl, hostweburl) {
+            var context;
+            var factory;
+            var appContextSite;
+            var collList;
+
+            context = new SP.ClientContext(appweburl);
+            factory = new SP.ProxyWebRequestExecutorFactory(appweburl);
+            context.set_webRequestExecutorFactory(factory);
+            appContextSite = new SP.AppContextSite(context, hostweburl);
+
+            this.web = appContextSite.get_web();
+            collList = this.web.get_lists();
+            context.load(collList);
+
+            context.executeQueryAsync(
+                Function.createDelegate(this, successHandler),
+                Function.createDelegate(this, errorHandler)
+            );
+
+            function successHandler() {
+                var listInfo = '';
+                var listEnumerator = collList.getEnumerator();
+
+                while (listEnumerator.moveNext()) {
+                    var oList = listEnumerator.get_current();
+                    listInfo += '<li>' + oList.get_title() + '</li>';
+                    alert(oList.get_title());
+                }
+
+                //document.getElementById("message").innerHTML = 'Lists found:<ul>' + listInfo + '</ul>';
+            }
+
+            function errorHandler(sender, args) {
+                alert("failure: " + args.get_message());
+                /*document.getElementById("message").innerText =
+                    "Could not complete cross-domain call: " + args.get_message();*/
+            }
+        }
+
+
+
+
+
+
+
+        /*function retrieveAllListProperties(appweburl, hostweburl) {
+
+
+            var collList;
+           
+            var context = new SP.ClientContext(appweburl);
+            var factory = new SP.ProxyWebRequestExecutorFactory(appweburl);
+            context.set_webRequestExecutorFactory(factory);
+            appContextSite = new SP.AppContextSite(context, hostweburl);
+            
+            
+
+            this.web = appContextSite.get_web();
+            collList = this.web.get_lists().getByTitle('Audit');
+            context.load(collList);
+
+            context.executeQueryAsync(
+                Function.createDelegate(this, onQuerySucceeded),
+                Function.createDelegate(this, onQueryFailed)
+            );
+        }
+
+        function onQuerySucceeded() {
+            var listInfo = '';
+            var listEnumerator = collList.getEnumerator();
+
+            while (listEnumerator.moveNext()) {
+                var oList = listEnumerator.get_current();
+                listInfo += 'Title: ' + oList.get_title() + '\n';
+            }
+            alert(listInfo);
+        }
+
+        function onQueryFailed(sender, args) {
+            alert('Request failed. ' + args.get_message() +
+                '\n' + args.get_stackTrace());
+        }*/
+        
+
+
     </script>
 </asp:Content>
 
@@ -208,6 +341,10 @@
         <br />
         <input id="Button2" type="button" value="test insert" />
         <input id="insertText" type="text" />
+        <br />
+        <br />
+        <br />
+        <input id="Button3" type="button" value="test JSOM all lists" />
         <br />
     </div>
     <div style="width: 100%; margin: auto;">

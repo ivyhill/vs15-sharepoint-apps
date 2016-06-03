@@ -47,11 +47,18 @@
     <None Include="Pages\AddQuestions\SharePointProjectItem.spdata">
       <SharePointProjectItemId>{ce3e29bf-b2e4-4758-bf90-545168ddd41f}</SharePointProjectItemId>
     </None>
+    <None Include="Pages\DisplayAudit\SharePointProjectItem.spdata">
+      <SharePointProjectItemId>{2ddedec0-89ac-4997-b914-2392d66ae471}</SharePointProjectItemId>
+    </None>
     <None Include="Pages\SharePointProjectItem.spdata">
       <SharePointProjectItemId>{19f03159-2713-4631-9a1c-6659226dc53e}</SharePointProjectItemId>
     </None>
     <Content Include="Pages\AddQuestions.aspx" />
     <Content Include="Pages\AddQuestions\Elements.xml">
+      <OpcRelationship>feature-elementmanifest</OpcRelationship>
+    </Content>
+    <Content Include="Pages\DisplayAudit.aspx" />
+    <Content Include="Pages\DisplayAudit\Elements.xml">
       <OpcRelationship>feature-elementmanifest</OpcRelationship>
     </Content>
     <Content Include="Pages\Elements.xml" />
@@ -62,6 +69,7 @@
     <None Include="Scripts\SharePointProjectItem.spdata">
       <SharePointProjectItemId>{c6608711-0acc-40e9-9067-dddc31554e60}</SharePointProjectItemId>
     </None>
+    <Content Include="Scripts\angular.min.js" />
     <Content Include="Scripts\Elements.xml" />
     <Content Include="Scripts\App.js" />
     <Content Include="Scripts\jquery-1.9.1.intellisense.js" />

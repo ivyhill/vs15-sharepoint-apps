@@ -33,7 +33,7 @@
                 //getItems();
                 //getListsXd();
                 ReusableCrossDomainListRequest("/web/lists/getbytitle('Audit')/items", GetSelectAudit);
-                
+                //location.reload(false);
             });
 
             
@@ -43,6 +43,13 @@
 
 
         });
+
+        function getUrlPath() {
+            var webRel = _spPageContextInfo.webAbsoluteUrl;
+            var lastIndex = webRel.lastIndexOf('/');
+            var urlpath = webRel.substring(0, lastIndex);
+            return urlpath;
+        }
 
         function getQueryStringParameter(paramToRetrieve) {
             var params =
@@ -70,6 +77,7 @@
         function GetSelectAudit(data) {
             var jsonObject = JSON.parse(data.body);
             var lists = jsonObject.d.results;
+            var auditID = $("#AuditDropdownList").val();
             var auditTitle = $("#AuditDropdownList option:selected" ).text();
             var scheduleArray;
             for (var item in lists)
@@ -80,14 +88,13 @@
                     scheduleArray = concatenatedScheduled.toString().split(',');
                     for (var i = 0; i < scheduleArray.length; i++) {
                         //pass proposed scheduled Source and AUDIT number into function that will query questions
-                        SetUpQuestionLoop(auditTitle, scheduleArray[i])
+                        SetUpQuestionLoop(auditTitle, auditID, scheduleArray[i])
                     }                 
                 }
             };
-
         }
 
-        function SetUpQuestionLoop(auditNum, source) {
+        function SetUpQuestionLoop(auditNum, auditID, source) {
             var midUrl = "/web/lists/getbytitle('ChecklistTemplate')/items";
             //var midUrlOld = "/web/lists/getbytitle('ChecklistTemplate')/items?$filter=Source eq \'" + source + "\'";
 
@@ -99,31 +106,51 @@
                 method: "GET",
                 headers: { "Accept": "application/json; odata=verbose" },
                 success: function (data) {
-                    GetAuditCheckList(data, auditNum, source);
+                    GetAuditCheckList(data, auditNum, auditID, source);
                 },
                 error: errorListHandlerXD
             });
         }
 
-        function GetAuditCheckList(data, auditNum, source) {
+        function GetAuditCheckList(data, auditNum, auditID, source) {
             var jsonObject = JSON.parse(data.body);
             var lists = jsonObject.d.results;
             for (var item in lists)
             {
                 //Then do insert the question
                 if (lists[item].Source == source) {
-                    //alert(lists[item].Questions);
+                    //https://ivyhilltech.sharepoint.com/sites/dev/AndreDev/_api/web/lists/getbytitle('AuditChecklist')?$select=ListItemEntityTypeFullName
+                    //use the above in order to get the proper listitem type
                     var insertData = {
-                        __metadata: { 'type': 'SP.Data.Audit%20Checklist' },
+                        __metadata: { 'type': 'SP.Data.Audit_x0020_ChecklistListItem' },
                         Title: auditNum,
-                        CL_x002d_ID: lists[item].CL_x002d_ID,
-                        Question: lists[item].Question,
+                        CL_x002d_ID: lists[item].Title,
+                        Question: lists[item].Questions,
                         Source: source
                     };
-                    ReusablePostCrossDomainListRequest("/web/lists/getbytitle('Audit%20Checklist')/items", CreateAuditCheckList, insertData);
+                    ReusablePostListUpdate("/_api/web/lists/getbytitle('AuditChecklist')/items", insertData);
+                    //ReusablePostCrossDomainListRequest("/web/lists/getbytitle('Audit%20Checklist')/items", insertData);
                 }
             }
+            StartUrlCreation(auditNum);
             //alert("this was a success here is the audit num: " + auditNum + " this is the CL-ID :" + CLID);
+        }
+
+        function StartUrlCreation(auditNum) {
+            var createUrl = "https://ivyhilltech.sharepoint.com/sites/dev/AndreDev/SitePages/ComboPage2.aspx?lookupID=" + auditNum;
+            var insertUrlData = {
+                __metadata: { 'type': 'SP.Data.AuditReadyUrlListItem' },
+                Title: auditNum,
+                AuditUrl:
+                        {
+                            '__metadata': { 'type': 'SP.FieldUrlValue' },
+                            'Description': 'Audit Link',
+                            'Url': createUrl
+                        }
+            };
+            //ReusablePostCrossDomainListRequest("/web/lists/getbytitle('AuditReadyUrl')/items", insertUrlData);
+            ReusablePostListUpdate("/_api/web/lists/getbytitle('AuditReadyUrl')/items", insertUrlData);
+            //alert("inserted: " + auditNum);
         }
 
         function CreateAuditCheckList(){
@@ -156,7 +183,7 @@
             });
         }
 
-        function ReusablePostCrossDomainListRequest(url, resultFuction, insertObject) {
+        function ReusablePostCrossDomainListRequest(url, insertObject) {
 
             var executor;
             executor = new SP.RequestExecutor(appwebUrl);
@@ -170,9 +197,29 @@
                 },
                 data: JSON.stringify(insertObject),
                 success: function (data) {
-                    alert("inserted");
+                    //alert("inserted");
                 },
                 error: errorListHandlerXD
+            });
+        }
+
+        function ReusablePostListUpdate(endUrl, insertObject) {
+            var url = getUrlPath() + endUrl;
+            $.ajax({
+                url: url,
+                type: "POST",
+                headers: {
+                    "accept": "application/json;odata=verbose",
+                    "X-RequestDigest": $("#__REQUESTDIGEST").val(),
+                    "content-Type": "application/json;odata=verbose"
+                },
+                data: JSON.stringify(insertObject),
+                success: function (data) {
+                    //alert("inserted");
+                },
+                error: function (error) {
+                    alert(JSON.stringify(error));
+                }
             });
         }
 
@@ -203,6 +250,9 @@
     </script>
 </head>
 <body>
+    <form runat="server">
+        <SharePoint:FormDigest ID="FormDigest1" runat="server"></SharePoint:FormDigest>
+    </form>
     <div id="contentArea" style="width: 100%;">
         <div style="display: inline-block;">
             <select id="AuditDropdownList" style="width:150px;">
